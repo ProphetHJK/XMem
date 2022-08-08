@@ -6,7 +6,7 @@ Xmem用于视频抠像，准确度非常高，且速度也较快。
 
 ### 首先安装必要的依赖
 
-- python3.8
+- python3.8(官方说3.8以上都行，但实测会有些问题，建议直接3.8版本)
 - pythorch(包括torchvision，<https://pytorch.org/>)
 - OpenCV(pip install opencv-python)
 - 其他(pip install -r requirements.txt)
@@ -48,7 +48,7 @@ python interactive_demo.py --video source/1.mp4 --num_objects 1 --size 480
 
 ## 自己做的工具介绍
 
-方便PR、剪映等视频剪辑软件导入
+放在tools文件夹，用工具处理后方便PR、剪映等视频剪辑软件导入
 
 ### mask颜色转换
 
