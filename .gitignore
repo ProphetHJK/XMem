@@ -4,6 +4,7 @@ saves/
 output/
 .vscode/
 workspace/
+source/
 run*.sh
 .DS_Store
 
