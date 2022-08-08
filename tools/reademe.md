@@ -1,6 +1,4 @@
-# 说明
-
-Xmem用于视频抠像，准确度非常高，且速度也较快。
+# 配套工具
 
 ## Xmem的使用介绍
 
@@ -48,7 +46,7 @@ python interactive_demo.py --video source/1.mp4 --num_objects 1 --size 480
 
 ## 自己做的工具介绍
 
-方便PR、剪映等视频剪辑软件导入
+方便pr等视频软件导入
 
 ### mask颜色转换
 
