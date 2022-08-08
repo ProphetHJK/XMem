@@ -4,6 +4,7 @@ saves/
 output/
 .vscode/
 workspace/
+source/
 run*.sh
 
 # Byte-compiled / optimized / DLL files
