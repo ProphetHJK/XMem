@@ -1,6 +1,12 @@
-# 说明
+# XMem
 
-Xmem用于视频抠像，准确度非常高，且速度也较快。
+## 说明
+
+Xmem用于视频抠像，优点是消耗的内存和GPU资源少，且对象识别效果非常出色
+
+## 演示
+
+<https://www.bilibili.com/video/BV1kW4y1h7N3>
 
 ## Xmem的使用介绍
 
@@ -29,11 +35,12 @@ scripts/download_models_demo.sh
 建议GUI，命令行看不到mask，不能实时调整。
 
 ```cmd
-python interactive_demo.py --video source/1.mp4 --num_objects 1 --size 480
+python interactive_demo.py --model "./saves/XMem-s012.pth" --video source/1.mp4 --num_objects 1 --size 480
 ```
 
 参数：
 
+- model: 预训练的模型，见RESULTS.md
 - num_objects：对象数，默认就是1
 - size：处理的视频的大小，会将待处理视频自动转为该大小，-1表示原大小，建议默认480或更小，太大处理不动。缺点是生成的mask放大有锯齿
 - 其他默认即可

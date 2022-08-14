@@ -30,8 +30,8 @@ def swap_palette(filename):
                 paldata = f.read(length)
                 # change the 3rd palette entry to cyan
                 # paldata = paldata[:6] + b'\x00\xff\xde' + paldata[9:]
-                # 第一个由黑色改为绿幕色，第二个由暗红色改为红色
-                paldata = b'\x00\xbe\x40' + b'\xff\x00\x00' + paldata[12:]
+                # 第一个由黑色改为绿色，第二个由暗红色改为红色
+                paldata = b'\x00\xff\x00' + b'\xff\x00\x00' + b'\x00\x00\xff' + paldata[9:]
 
                 # go back and write the modified palette in-place
                 f.seek(curpos)
@@ -42,7 +42,7 @@ def swap_palette(filename):
                 f.seek(length+4, os.SEEK_CUR)
 i = 1
 j = 1
-path='workspace/6/'
+path='workspace/11/'
 src_path = path + 'masks/'
 dst_path = path + 'masks2/'
 if not os.path.exists(dst_path):
