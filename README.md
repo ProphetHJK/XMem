@@ -35,14 +35,20 @@ scripts/download_models_demo.sh
 建议GUI，命令行看不到mask，不能实时调整。
 
 ```cmd
-python interactive_demo.py --model "./saves/XMem-s012.pth" --video source/1.mp4 --num_objects 1 --size 480
+python interactive_demo.py --model "./saves/XMem-s012.pth" --num_objects 1 --size 480 --video source/1.mp4
+```
+
+修改tools/config.ini
+
+```cmd
+python interactive_demo.py
 ```
 
 参数：
 
 - model: 预训练的模型，见RESULTS.md
 - num_objects：对象数，默认就是1
-- size：处理的视频的大小，会将待处理视频自动转为该大小，-1表示原大小，建议默认480或更小，太大处理不动。缺点是生成的mask放大有锯齿
+- size：处理的视频的大小，会将待处理视频自动转为该大小，-1表示原大小，建议默认480或更小（如果你的显卡够强可以直接-1），太小的缺点是生成的mask放大有锯齿
 - 其他默认即可
 
 ### 打标记
@@ -59,11 +65,19 @@ python interactive_demo.py --model "./saves/XMem-s012.pth" --video source/1.mp4 
 
 ### mask颜色转换
 
-```
-pngcolor.py
+用于将生成的mask的颜色转为绿底
+
+前置要求：
+
+- [FFmpeg](https://ffmpeg.org/download.html#build-windows)(获取源视频信息，生成目标视频)
+- [Git Bash](https://gitforwindows.org/)(用到了grep命令，Linux一般自带)
+- python3
+
+```powershell
+PS H:\XMem> python tools/pngcolor.py
 ```
 
-用于将生成的mask的颜色转为绿底
+更新：已添加自动读取源文件信息并生成绿底视频功能，需要先修改tools/config.ini
 
 ### 生成视频
 

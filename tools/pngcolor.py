@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 #! python3
 from PIL import Image
-import os,sys
+import os,sys,re
 import struct
 from zlib import crc32
 import shutil
@@ -47,6 +47,7 @@ def swap_palette(filename):
 config = configparser.ConfigParser()
 config.read('tools/config.ini')
 src_file_name = config['config']['src_file_name']
+src_file_ext = config['config']['src_file_ext']
 i = 1
 j = 1
 path='workspace/%s/' % src_file_name
@@ -87,4 +88,8 @@ for root, dirs, files in os.walk(src_path):
 
         # # img = img.convert("RGB")#把图片强制转成RGB
         # img.save(dst_path+file)#保存修改像素点后的图片
-os.system("ffmpeg -framerate 30 -i %s%%07d.png -c:v copy %soutput.mkv" % (dst_path,dst_path))
+
+outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 source/%s.%s |grep \"r_frame_rate\"" % (src_file_name,src_file_ext)))
+framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
+print(framerate)
+os.system("ffmpeg -framerate %s -y -i %s%%07d.png -c:v copy %soutput.mkv" % (framerate, dst_path,dst_path))
