@@ -26,6 +26,8 @@ from inference.interact.gui import App
 from inference.interact.resource_manager import ResourceManager
 from contextlib import nullcontext
 
+import configparser
+
 torch.set_grad_enabled(False)
 
 if torch.cuda.is_available():
@@ -36,6 +38,15 @@ else:
     device = torch.device("cpu")
 
 if __name__ == '__main__':
+    
+    config = configparser.ConfigParser()
+    config.read('tools/config.ini')
+    src_file_name = config['config']['src_file_name']
+    src_file_ext = config['config']['src_file_ext']
+    video_resize = config['config']['video_resize']
+    model_name = config['config']['model_name']
+    object_num = config['config']['object_num']
+    
     # Arguments parsing
     parser = ArgumentParser()
     parser.add_argument('--model', default='./saves/XMem.pth')
@@ -51,7 +62,7 @@ if __name__ == '__main__':
     That way, you can continue annotation from an interrupted run as long as the same workspace is used.
     """
     parser.add_argument('--images', help='Folders containing input images.', default=None)
-    parser.add_argument('--video', help='Video file readable by OpenCV.', default=None)
+    parser.add_argument('--video', help='Video file readable by OpenCV.', default='source/%s.%s' % (src_file_name,src_file_ext))
     parser.add_argument('--workspace', help='directory for storing buffered images (if needed) and output masks', default=None)
 
     parser.add_argument('--buffer_size', help='Correlate with CPU memory consumption', type=int, default=100)
@@ -78,6 +89,15 @@ if __name__ == '__main__':
     config = vars(args)
     config['enable_long_term'] = True
     config['enable_long_term_count_usage'] = True
+    if config['model'] == './saves/XMem.pth':
+        config['model'] = './saves/%s.pth' % model_name
+        print(config['model'])
+    if config['size'] == 480:
+        config['size'] = int(video_resize)
+        print(config['size'])
+    if config['num_objects'] == 1:
+        config['num_objects'] = int(object_num)
+        print(config['num_objects'])
 
     if config["workspace"] is None:
         if config["images"] is not None:
