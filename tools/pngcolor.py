@@ -5,6 +5,8 @@ import os,sys
 import struct
 from zlib import crc32
 import shutil
+import configparser
+
 
 pngsig = b'\x89PNG\r\n\x1a\n'
 def swap_palette(filename):
@@ -14,6 +16,7 @@ def swap_palette(filename):
         # verify that we have a PNG file
         if f.read(len(pngsig)) != pngsig:
             # raise RuntimeError('not a png file!')
+            print("not a png file!")
             return
 
         while True:
@@ -40,9 +43,13 @@ def swap_palette(filename):
             else:
                 # skip over non-palette chunks
                 f.seek(length+4, os.SEEK_CUR)
+
+config = configparser.ConfigParser()
+config.read('tools/config.ini')
+src_file_name = config['config']['src_file_name']
 i = 1
 j = 1
-path='workspace/11/'
+path='workspace/%s/' % src_file_name
 src_path = path + 'masks/'
 dst_path = path + 'masks2/'
 if not os.path.exists(dst_path):
@@ -80,3 +87,4 @@ for root, dirs, files in os.walk(src_path):
 
         # # img = img.convert("RGB")#把图片强制转成RGB
         # img.save(dst_path+file)#保存修改像素点后的图片
+os.system("ffmpeg -framerate 30 -i %s%%07d.png -c:v copy %soutput.mkv" % (dst_path,dst_path))
