@@ -52,15 +52,16 @@ i = 1
 j = 1
 path='workspace/%s/' % src_file_name
 src_path = path + 'masks/'
-dst_path = path + 'masks2/'
-if not os.path.exists(dst_path):
-    os.makedirs(dst_path)
-# old_dir=os.listdir(path)
-for root, dirs, files in os.walk(src_path):
-    for file in files:
-        shutil.copyfile(root+file, dst_path+file)
-        # 方式1，PNG为P模式，非RGB模式，所以直接修改调色板
-        swap_palette(dst_path+file)
+# dst_path = path + 'masks2/'
+dst_path = path + 'masks/'
+# if not os.path.exists(dst_path):
+#     os.makedirs(dst_path)
+
+# for root, dirs, files in os.walk(src_path):
+#     for file in files:
+#         shutil.copyfile(root+file, dst_path+file)
+#         # 方式1，PNG为P模式，非RGB模式，所以直接修改调色板
+#         swap_palette(dst_path+file)
 
         # 方式2，下面是用转成RGB再修改每个像素点的方式，太慢了
         # img = Image.open(os.path.join(root,file))#读取系统的内照片
