@@ -54,7 +54,7 @@ while not done:
         done = True
         continue
     red_mask = red_mask_list[frame_num]
-    print(red_mask)
+    # print(red_mask)
     # resize,考虑加上resize.py的高斯滤波
     # img = cv2.resize(img, res)
     red_mask_img_file = Image.open(red_mask)
@@ -63,13 +63,13 @@ while not done:
 
     # change to hsv
     hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_BGR2HSV)
-    h,s,v = cv2.split(hsv)
+    hue,s,v = cv2.split(hsv)
 
-    # get uniques
-    unique_colors, counts = np.unique(s, return_counts=True)
-
-    # sort through and grab the most abundant unique color
     if green_mask == False:
+        # get uniques
+        unique_colors, counts = np.unique(s, return_counts=True)
+
+        # sort through and grab the most abundant unique color
         # 提取画面中最多的单一颜色
         big_color = None
         biggest = -1
@@ -83,7 +83,7 @@ while not done:
         mask = cv2.inRange(s, big_color - margin, big_color + margin)
     else:
         # 提取红色，处理后mask矩阵中红色为0，非红色为255，和像素点一一对应
-        mask = cv2.inRange(h, 0, 0)
+        mask = cv2.inRange(hue, 0, 0)
         # print(mask)
         # with open("randomfile.txt", "w+") as external_file:
         #     np.set_printoptions(threshold=np.inf)
