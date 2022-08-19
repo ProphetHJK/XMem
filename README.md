@@ -34,21 +34,24 @@ scripts/download_models_demo.sh
 
 建议GUI，命令行看不到mask，不能实时调整。
 
-```cmd
-python interactive_demo.py --model "./saves/XMem-s012.pth" --num_objects 1 --size 480 --video source/1.mp4
-```
+- 方式一：手动填写参数，执行以下命令
 
-修改tools/config.ini
+    ```cmd
+    python interactive_demo.py --model "./saves/XMem-s012.pth" --num_objects 1 --size 480 --video source/1.mp4
+    ```
 
-```cmd
-python interactive_demo.py
-```
+- 方式二：修改tools/config.ini，执行以下命令
 
-参数：
+    ```cmd
+    python interactive_demo.py
+    ```
 
-- model: 预训练的模型，见RESULTS.md
-- num_objects：对象数，默认就是1
-- size：处理的视频的大小，会将待处理视频自动转为该大小，-1表示原大小，建议默认480或更小（如果你的显卡够强可以直接-1），太小的缺点是生成的mask放大有锯齿
+参数说明：
+
+- `model`: 预训练的模型路径，见RESULTS.md
+- `num_objects`：对象数，默认就是1
+- `size`：处理的视频的大小，会将待处理视频自动转为该大小，-1表示原大小，建议默认480或更小（如果你的显卡够强可以直接-1），太小的缺点是生成的mask放大有锯齿
+- `video`：源视频路径
 - 其他默认即可
 
 ### 打标记
