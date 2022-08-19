@@ -139,3 +139,5 @@ dmypy.json
 .pyre/
 tools/演示.mp4
 tools/testdata/
+test_vid.avi
+randomfile.txt
