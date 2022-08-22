@@ -28,11 +28,12 @@ h,w = frame.shape[:2]
 h = int(h*scale)
 w = int(w*scale)
 
-backimg_file = Image.open(backimg_path)
-backimg = backimg_file.convert("RGB")
-backimg_file.close()
-backimg = backimg.resize(((w, h)))
-backimg = np.array(backimg)
+if backimg_path is not None:
+    backimg_file = Image.open(backimg_path)
+    backimg = backimg_file.convert("RGB")
+    backimg_file.close()
+    backimg = backimg.resize(((w, h)))
+    backimg = np.array(backimg)
 
 # videowriter 
 res = (w, h)
@@ -58,7 +59,11 @@ while not done:
     # resize,考虑加上resize.py的高斯滤波
     # img = cv2.resize(img, res)
     red_mask_img_file = Image.open(red_mask)
-    red_mask_img = resize.Gaussian(red_mask_img_file, h, w)
+    # red_mask_img = resize.Gaussian(red_mask_img_file, h, w)
+    # 暂时先别用高斯模糊
+    red_mask_img = red_mask_img_file.convert("RGB")
+    red_mask_img = np.array(red_mask_img)
+    red_mask_img = cv2.resize(red_mask_img, (w, h))
     red_mask_img_file.close()
 
     # change to hsv
@@ -92,13 +97,14 @@ while not done:
         # sys.exit()
 
     # smooth out the mask and invert，柔化边缘，之前高斯过了，可以不用
-    kernel = np.ones((3,3), np.uint8)
-    mask = cv2.dilate(mask, kernel, iterations = 1)
-    mask = cv2.medianBlur(mask, 5)
-    mask = cv2.bitwise_not(mask)
+    # kernel = np.ones((3,3), np.uint8)
+    # mask = cv2.dilate(mask, kernel, iterations = 1)
+    # mask = cv2.medianBlur(mask, 5)
+    # mask = cv2.bitwise_not(mask)
 
     # crop out the image，提取非红色部分
     crop = np.zeros_like(img) # 构造大小相同全0矩阵
+    # 将非红色部分填充为原图片
     crop[mask == 255] = img[mask == 255]
     # with open("randomfile.txt", "w+") as external_file:
     #     np.set_printoptions(threshold=np.inf)
@@ -106,8 +112,10 @@ while not done:
     #     external_file.close()
     # sys.exit()
     if backimg_path is None:
+        # 将红色部分填充为绿色
         crop[mask == 0] = [0,255,0] 
     else: 
+        # 将红色部分填充为背景
         rows, cols = crop.shape[:2]
         for i in range(rows):
             for j in range(cols):
