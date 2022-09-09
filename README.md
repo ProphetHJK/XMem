@@ -62,6 +62,10 @@ scripts/download_models_demo.sh
 
 生成的mask放在workspace目录，重新打开GUI会自动加载之前的标记
 
+### 进阶：多对象标记
+
+使用数字键`0-9`切换对象，默认是1号对象，每个对象的标记颜色不同，可以用于区分
+
 ## 自己做的工具介绍
 
 放在tools文件夹，用工具处理后方便PR、剪映等视频剪辑软件导入
@@ -80,6 +84,8 @@ scripts/download_models_demo.sh
 PS H:\XMem> python tools/greenback.py
 ```
 
+生成的视频在 `workspace/{视频文件名}/greenback.mp4`
+
 更新：已添加自动读取源文件信息并生成绿底视频功能，需要先修改tools/config.ini
 
 ### 生成mask视频
@@ -94,4 +100,12 @@ PS H:\XMem> python tools/greenback.py
 PS H:\XMem> python tools/pngcolor.py
 ```
 
+生成的视频在 `workspace/{视频文件名}/masks/output.mkv`
+
 目前还有BUG，遇到非固定速率视频会造成生成的mask视频和源视频不匹配，此时可以尝试将源视频转为固定帧速率
+
+### 后续TODO
+
+1. 优化边缘锯齿（对于性能较弱的显卡不得不降低素材分辨率，导致mask图片边缘会有锯齿）
+2. 非固定速率视频的mask匹配（目前可以使用生成绿幕视频功能解决该问题，但有可能导致音画不匹配）
+3. windows下的GUI工具
