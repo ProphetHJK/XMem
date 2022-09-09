@@ -34,16 +34,16 @@ scripts/download_models_demo.sh
 
 建议GUI，命令行看不到mask，不能实时调整。
 
-- 方式一：手动填写参数，执行以下命令
-
-    ```cmd
-    python interactive_demo.py --model "./saves/XMem-s012.pth" --num_objects 1 --size 480 --video source/1.mp4
-    ```
-
-- 方式二：修改tools/config.ini，执行以下命令
+- （推荐）方式一：修改tools/config.ini，执行以下命令
 
     ```cmd
     python interactive_demo.py
+    ```
+
+- 方式二：手动填写参数，执行以下命令
+
+    ```cmd
+    python interactive_demo.py --model "./saves/XMem-s012.pth" --num_objects 1 --size 480 --video source/1.mp4
     ```
 
 参数说明：
@@ -66,9 +66,9 @@ scripts/download_models_demo.sh
 
 放在tools文件夹，用工具处理后方便PR、剪映等视频剪辑软件导入
 
-### mask颜色转换
+### 生成绿幕视频
 
-用于将生成的mask的颜色转为绿底
+用于生成绿幕视频
 
 前置要求：
 
@@ -77,23 +77,21 @@ scripts/download_models_demo.sh
 - python3
 
 ```powershell
-PS H:\XMem> python tools/pngcolor.py
+PS H:\XMem> python tools/greenback.py
 ```
 
 更新：已添加自动读取源文件信息并生成绿底视频功能，需要先修改tools/config.ini
 
-### 生成视频
+### 生成mask视频
 
-```
-convertmkv.sh
-```
+利用ffmpeg将mask图片组转为视频
 
-利用ffmpeg将mask转为视频
+前置要求：
 
-### 重命名文件
+- 同[生成绿幕视频](#生成绿幕视频)
 
-```
-rename.py
+```powershell
+PS H:\XMem> python tools/pngcolor.py
 ```
 
-用于测试文件的重命名
+目前还有BUG，遇到非固定速率视频会造成生成的mask视频和源视频不匹配，此时可以尝试将源视频转为固定帧速率

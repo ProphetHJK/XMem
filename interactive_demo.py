@@ -101,60 +101,60 @@ if __name__ == '__main__':
         config['num_objects'] = int(object_num)
         print(config['num_objects'])
         
-    cap = cv2.VideoCapture(config['video'])
-    if cap.isOpened():
-        _, frame = cap.read()
-        h, w = frame.shape[:2]
-        min_x = min(h,w)
-        size = config['size']
-        if min_x <= size:
-            config['size'] = min_x
-        else:
-            r_size = 0
-            for i in [2,4]:
-                chu = min_x // i
-                yu = min_x % i
-                if yu == 0:
-                    r_size = chu
-                    if r_size >= size - 60 and r_size <= size + 60:
-                        config['size'] = r_size
-                        break
-        print("height scale:",h/(h*config['size']//min_x))
-        print("width scale:",w/(w*config['size']//min_x))
-          
     # cap = cv2.VideoCapture(config['video'])
     # if cap.isOpened():
     #     _, frame = cap.read()
     #     h, w = frame.shape[:2]
-    #     math = Fraction(h, w)
+    #     min_x = min(h,w)
     #     size = config['size']
-    #     min_x = min(math.numerator,math.denominator)
-    #     chu = size // min_x
-    #     yu = size % min_x
-    #     r_size_min = 0
-    #     if chu > 0:
-    #         if yu > 0.3:
-    #             r_size = min_x * (chu+1)
-    #             r_size_min = min_x * chu
-    #         elif yu > 0:
-    #             r_size = min_x * chu
-    #         else:
-    #             r_size = size
+    #     if min_x <= size:
+    #         config['size'] = min_x
     #     else:
-    #         r_size = min_x
+    #         r_size = 0
+    #         for i in [2,4]:
+    #             chu = min_x // i
+    #             yu = min_x % i
+    #             if yu == 0:
+    #                 r_size = chu
+    #                 if r_size >= size - 60 and r_size <= size + 60:
+    #                     config['size'] = r_size
+    #                     break
+    #     print("height scale:",h/(h*config['size']//min_x))
+    #     print("width scale:",w/(w*config['size']//min_x))
+          
+    # # cap = cv2.VideoCapture(config['video'])
+    # # if cap.isOpened():
+    # #     _, frame = cap.read()
+    # #     h, w = frame.shape[:2]
+    # #     math = Fraction(h, w)
+    # #     size = config['size']
+    # #     min_x = min(math.numerator,math.denominator)
+    # #     chu = size // min_x
+    # #     yu = size % min_x
+    # #     r_size_min = 0
+    # #     if chu > 0:
+    # #         if yu > 0.3:
+    # #             r_size = min_x * (chu+1)
+    # #             r_size_min = min_x * chu
+    # #         elif yu > 0:
+    # #             r_size = min_x * chu
+    # #         else:
+    # #             r_size = size
+    # #     else:
+    # #         r_size = min_x
 
-    #     if r_size > size - 40 and r_size < size + 100:
-    #         print(r_size)
-    #         config['size'] = r_size
-    #     elif r_size_min > size - 40 and r_size_min < size + 100:
-    #         print(r_size_min)
-    #         config['size'] = r_size_min
-    #     else:
-    #         print("r_size:%d,r_size_min:%d,too big" % (r_size,r_size_min))
-    #         sys.exit()
-    #     # min(w, h)/size 为整数
-    #     print("scale:",(min(h,w) / r_size))
-    cap.release()
+    # #     if r_size > size - 40 and r_size < size + 100:
+    # #         print(r_size)
+    # #         config['size'] = r_size
+    # #     elif r_size_min > size - 40 and r_size_min < size + 100:
+    # #         print(r_size_min)
+    # #         config['size'] = r_size_min
+    # #     else:
+    # #         print("r_size:%d,r_size_min:%d,too big" % (r_size,r_size_min))
+    # #         sys.exit()
+    # #     # min(w, h)/size 为整数
+    # #     print("scale:",(min(h,w) / r_size))
+    # cap.release()
     
     if config["workspace"] is None:
         if config["images"] is not None:

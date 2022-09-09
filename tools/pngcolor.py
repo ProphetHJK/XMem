@@ -102,6 +102,7 @@ dst_path = path + 'masks/'
 #         img = img.resize((Width,Height),Image.ANTIALIAS)
 #         img.save(os.path.join(outdir,file))
 
+# TODO:有BUG，遇到非固定速率视频会造成不匹配
 outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 source/%s.%s |grep \"r_frame_rate\"" % (src_file_name,src_file_ext)))
 framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 print(framerate)
