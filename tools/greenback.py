@@ -25,11 +25,14 @@ config = configparser.ConfigParser()
 config.read('tools/config.ini')
 src_file_name = config['config']['src_file_name']
 src_file_ext = config['config']['src_file_ext']
-# mask图片中非mask部分的hsv通道中的h，不能为黑色，红0，绿120，蓝240
+# mask图片中非mask部分的hsv通道中的h，不能为黑色，红0，绿120，蓝240，Xmem分割单对象默认为红色
 none_mask_color_hue = 0
 
+src_file = "source/%s.%s" % (src_file_name,src_file_ext)
+dst_file = 'workspace/%s/greenback.mp4' % src_file_name
+
 # open up video
-cap = cv2.VideoCapture("source/%s.mp4" % src_file_name)
+cap = cv2.VideoCapture(src_file)
 red_mask_list = sorted(glob.glob('workspace/%s/masks/*.png' % src_file_name))
 backimg_path = None
 # backimg_path = "1.jpg"
@@ -54,11 +57,11 @@ if backimg_path is not None:
 # videowriter 
 res = (w, h)
 # 获取帧率
-outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 source/%s.%s |grep \"r_frame_rate\"" % (src_file_name,src_file_ext)))
+outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"r_frame_rate\"" % src_file))
 framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 fr = convert_str_to_float(framerate)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter('test_vid.avi',fourcc, fr, res)
+out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 
 frame_num = 0
 
@@ -145,3 +148,10 @@ while not done:
 # close caps
 cap.release()
 out.release()
+
+os.system("ffmpeg -i %s -c:v libx265 -crf 26 %s" % (dst_file+'.avi',dst_file+'.mp4'))
+os.system("ffmpeg -i %s -vn -c:a copy %s" % (src_file,dst_file+'.aac'))
+if os.path.exists(dst_file+'.aac'):
+    os.system("ffmpeg -i %s -i %s -c:v copy -c:a aac %s" % (dst_file+'.aac',dst_file+'.mp4',dst_file))
+else:
+    os.system("ffmpeg -i %s -c:v copy %s" % (dst_file+'.mp4',dst_file))
