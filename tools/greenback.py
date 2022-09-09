@@ -4,19 +4,35 @@ import numpy as np
 import glob
 import configparser,sys
 from PIL import Image
-
+import os,re
 import resize
+
+"""
+本程序用于生成绿幕视频，方便PR等视频剪辑工具导入
+
+"""
+
+
+def convert_str_to_float(s: str) -> float:
+    """Convert rational or decimal string to float
+    """
+    if '/' in s:
+        num, denom = s.split('/')
+        return float(num) / float(denom)
+    return float(s)
 
 config = configparser.ConfigParser()
 config.read('tools/config.ini')
 src_file_name = config['config']['src_file_name']
 src_file_ext = config['config']['src_file_ext']
-green_mask = True
+# mask图片中非mask部分的hsv通道中的h，不能为黑色，红0，绿120，蓝240
+none_mask_color_hue = 0
 
 # open up video
 cap = cv2.VideoCapture("source/%s.mp4" % src_file_name)
 red_mask_list = sorted(glob.glob('workspace/%s/masks/*.png' % src_file_name))
-backimg_path = "workspace/%s/masks/0000000.png" % src_file_name
+backimg_path = None
+# backimg_path = "1.jpg"
 
 # 邻近色
 margin = 5
@@ -37,15 +53,19 @@ if backimg_path is not None:
 
 # videowriter 
 res = (w, h)
+# 获取帧率
+outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 source/%s.%s |grep \"r_frame_rate\"" % (src_file_name,src_file_ext)))
+framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
+fr = convert_str_to_float(framerate)
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-out = cv2.VideoWriter('test_vid.avi',fourcc, 30.0, res)
+out = cv2.VideoWriter('test_vid.avi',fourcc, fr, res)
 
 frame_num = 0
 
 # loop
 done = False
 while not done:
-    # get frame,第一帧之前读过了
+    # get frame,第一帧之前读过了,跳过读取
     if frame_num != 0:
         ret, img = cap.read()
     else:
@@ -63,38 +83,27 @@ while not done:
     # 暂时先别用高斯模糊
     red_mask_img = red_mask_img_file.convert("RGB")
     red_mask_img = np.array(red_mask_img)
+    # TODO:mask图片拉伸后会有锯齿，可以尝试消除
     red_mask_img = cv2.resize(red_mask_img, (w, h))
     red_mask_img_file.close()
 
     # change to hsv
-    hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_BGR2HSV)
+    hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_RGB2HSV)
     hue,s,v = cv2.split(hsv)
 
-    if green_mask == False:
-        # get uniques
-        unique_colors, counts = np.unique(s, return_counts=True)
 
-        # sort through and grab the most abundant unique color
-        # 提取画面中最多的单一颜色
-        big_color = None
-        biggest = -1
-        for a in range(len(unique_colors)):
-            if counts[a] > biggest:
-                biggest = counts[a]
-                big_color = int(unique_colors[a])
-
-
-        # get the color mask
-        mask = cv2.inRange(s, big_color - margin, big_color + margin)
-    else:
-        # 提取红色，处理后mask矩阵中红色为0，非红色为255，和像素点一一对应
-        mask = cv2.inRange(hue, 0, 0)
-        # print(mask)
-        # with open("randomfile.txt", "w+") as external_file:
-        #     np.set_printoptions(threshold=np.inf)
-        #     print(mask, file=external_file)
-        #     external_file.close()
-        # sys.exit()
+    # 提取红色构建mask矩阵，处理后mask矩阵中红色为0，非红色为255，和像素点一一对应
+    # 第一个参数：原始值
+    # 第二个参数：lower_red指的是图像中低于这个lower_red的值，图像值变为0
+    # 第三个参数：upper_red指的是图像中高于这个upper_red的值，图像值变为0
+    # 而在lower_red～upper_red之间的值变成255
+    mask = cv2.inRange(hue, 0, 0)
+    # print(mask)
+    # with open("randomfile.txt", "w+") as external_file:
+    #     np.set_printoptions(threshold=np.inf)
+    #     print(mask, file=external_file)
+    #     external_file.close()
+    # sys.exit()
 
     # smooth out the mask and invert，柔化边缘，之前高斯过了，可以不用
     # kernel = np.ones((3,3), np.uint8)
@@ -104,7 +113,7 @@ while not done:
 
     # crop out the image，提取非红色部分
     crop = np.zeros_like(img) # 构造大小相同全0矩阵
-    # 将非红色部分填充为原图片
+    # 将红色mask部分填充为原图片
     crop[mask == 255] = img[mask == 255]
     # with open("randomfile.txt", "w+") as external_file:
     #     np.set_printoptions(threshold=np.inf)
@@ -112,10 +121,10 @@ while not done:
     #     external_file.close()
     # sys.exit()
     if backimg_path is None:
-        # 将红色部分填充为绿色
+        # 将非红色mask部分填充为绿色
         crop[mask == 0] = [0,255,0] 
     else: 
-        # 将红色部分填充为背景
+        # 将非红色mask部分填充为背景
         rows, cols = crop.shape[:2]
         for i in range(rows):
             for j in range(cols):
