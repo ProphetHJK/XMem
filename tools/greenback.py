@@ -60,7 +60,8 @@ res = (w, h)
 outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"r_frame_rate\"" % src_file))
 framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 fr = convert_str_to_float(framerate)
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
+# 文件为未压缩版本，会较大
+fourcc = cv2.VideoWriter_fourcc(*'I420')
 out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 
 frame_num = 0
