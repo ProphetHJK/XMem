@@ -150,9 +150,4 @@ while not done:
 cap.release()
 out.release()
 
-os.system("ffmpeg -i %s -c:v libx265 -crf 26 %s" % (dst_file+'.avi',dst_file+'.mp4'))
-os.system("ffmpeg -i %s -vn -c:a copy %s" % (src_file,dst_file+'.aac'))
-if os.path.exists(dst_file+'.aac'):
-    os.system("ffmpeg -i %s -i %s -c:v copy -c:a aac %s" % (dst_file+'.aac',dst_file+'.mp4',dst_file))
-else:
-    os.system("ffmpeg -i %s -c:v copy %s" % (dst_file+'.mp4',dst_file))
+os.system('ffmpeg -i %s -i %s -map 0:v -map 1:a? -c:v libx265 -crf 26 -c:a copy %s' % (dst_file+'.avi',src_file, dst_file))
