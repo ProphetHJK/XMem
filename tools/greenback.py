@@ -63,14 +63,9 @@ res = (w, h)
 outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"r_frame_rate\"" % src_file))
 framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 fr = convert_str_to_float(framerate)
-<<<<<<< HEAD
 fourcc = cv2.VideoWriter_fourcc(*'I420')
 if os.path.exists(dst_file+'.avi'):
     os.remove(dst_file+'.avi')
-=======
-# 文件为未压缩版本，会较大
-fourcc = cv2.VideoWriter_fourcc(*'I420')
->>>>>>> 78a75dc37002630888bf501d126b8b5b09c205c8
 out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 
 # 获取总帧数
