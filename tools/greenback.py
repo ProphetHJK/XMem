@@ -1,11 +1,12 @@
 from turtle import back
 import cv2
 import numpy as np
+import cupy as cp
 import glob
 import configparser,sys
 from PIL import Image
 import os,re
-import resize
+import resize,time
 
 """
 本程序用于生成绿幕视频，方便PR等视频剪辑工具导入
@@ -20,6 +21,8 @@ def convert_str_to_float(s: str) -> float:
         num, denom = s.split('/')
         return float(num) / float(denom)
     return float(s)
+
+start = time.time()
 
 config = configparser.ConfigParser()
 config.read('tools/config.ini')
@@ -60,10 +63,21 @@ res = (w, h)
 outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"r_frame_rate\"" % src_file))
 framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 fr = convert_str_to_float(framerate)
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
+fourcc = cv2.VideoWriter_fourcc(*'I420')
+if os.path.exists(dst_file+'.avi'):
+    os.remove(dst_file+'.avi')
 out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 
+# 获取总帧数
+outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"nb_frames\"" % src_file))
+total_framenum = re.search("nb_frames=(.*)",outstr).group(1)
+total_framenum = int(total_framenum) - 1
+
 frame_num = 0
+
+end = time.time() - start
+print('初始化完成：用时：{}'.format(end))
+start = time.time()
 
 # loop
 done = False
@@ -77,6 +91,7 @@ while not done:
     if not ret:
         done = True
         continue
+    print('进度：%d/%d\r' % (frame_num,total_framenum),end='')
     red_mask = red_mask_list[frame_num]
     # print(red_mask)
     # resize,考虑加上resize.py的高斯滤波
@@ -115,9 +130,12 @@ while not done:
     # mask = cv2.bitwise_not(mask)
 
     # crop out the image，提取非红色部分
-    crop = np.zeros_like(img) # 构造大小相同全0矩阵
+    # crop = np.zeros_like(img) # 构造大小相同全0矩阵
     # 将红色mask部分填充为原图片
-    crop[mask == 255] = img[mask == 255]
+    
+    # crop = cp.asarray(img)
+    crop = img
+
     # with open("randomfile.txt", "w+") as external_file:
     #     np.set_printoptions(threshold=np.inf)
     #     print(img, file=external_file)
@@ -127,6 +145,7 @@ while not done:
         # 将非红色mask部分填充为绿色
         crop[mask == 0] = [0,255,0] 
     else: 
+        backimg = cp.asarray(backimg)
         # 将非红色mask部分填充为背景
         rows, cols = crop.shape[:2]
         for i in range(rows):
@@ -141,17 +160,23 @@ while not done:
     # done = cv2.waitKey(1) == ord('q')
 
     # save
+    # crop = cp.asnumpy(crop)
+
     out.write(crop)
-    
+
     frame_num  = frame_num + 1
+
+
+end = time.time() - start
+print('avi生成完成：用时：{}'.format(end))
+start = time.time()
 
 # close caps
 cap.release()
 out.release()
 
-os.system("ffmpeg -i %s -c:v libx265 -crf 26 %s" % (dst_file+'.avi',dst_file+'.mp4'))
-os.system("ffmpeg -i %s -vn -c:a copy %s" % (src_file,dst_file+'.aac'))
-if os.path.exists(dst_file+'.aac'):
-    os.system("ffmpeg -i %s -i %s -c:v copy -c:a aac %s" % (dst_file+'.aac',dst_file+'.mp4',dst_file))
-else:
-    os.system("ffmpeg -i %s -c:v copy %s" % (dst_file+'.mp4',dst_file))
+os.system('ffmpeg -i %s -i %s -map 0:v -map 1:a? -c:v libx265 -crf 26 -c:a copy %s' % (dst_file+'.avi',src_file, dst_file))
+    
+end = time.time() - start
+print('mp4生成完成：用时：{}'.format(end))
+start = time.time()

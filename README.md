@@ -78,6 +78,7 @@ scripts/download_models_demo.sh
 
 - [FFmpeg](https://ffmpeg.org/download.html#build-windows)(获取源视频信息，生成目标视频)
 - [Git Bash](https://gitforwindows.org/)(用到了grep命令，Linux一般自带)
+- [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64&target_version=10&target_type=exe_local)(加速numpy矩阵计算)
 - python3
 
 ```powershell
