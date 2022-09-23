@@ -80,6 +80,7 @@ scripts/download_models_demo.sh
 - [Git Bash](https://gitforwindows.org/)(用到了grep命令，Linux一般自带)
 - [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64&target_version=10&target_type=exe_local)(加速numpy矩阵计算)
 - python3
+- cupy
 
 ```powershell
 PS H:\XMem> python tools/greenback.py
