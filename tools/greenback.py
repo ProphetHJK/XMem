@@ -34,75 +34,95 @@ def print_all_numpy(n,file):
     with open(file, "w+") as external_file:
         print(n, file=external_file)
 
-sem = threading.Semaphore(3)
+sem = threading.Semaphore(6)
 write_sem = threading.Semaphore(1)
-def apply_mask(red_mask_list,frame_num,img,backimg,out_crop_list,cupyflag):
+end_sem = threading.Semaphore(0)
+def apply_mask(red_mask_list,frame_num,img,backimg,out_crop_list,cupyflag,first_mask_filename_int):
     # sem.acquire()
+    frame_num_tmp = frame_num
+    frame_num = frame_num - first_mask_filename_int
     red_mask = red_mask_list[frame_num]
-    # print(red_mask)
-    # resize,考虑加上resize.py的高斯滤波
-    # img = cv2.resize(img, res)
-    red_mask_img_file = Image.open(red_mask)
-    # red_mask_img = resize.Gaussian(red_mask_img_file, h, w)
-    # 暂时先别用高斯模糊
-    red_mask_img = red_mask_img_file.convert("RGB")
-    red_mask_img = np.array(red_mask_img)
-    # TODO:mask图片拉伸后会有锯齿，可以尝试消除
-    red_mask_img = cv2.resize(red_mask_img, (w, h),cv2.INTER_CUBIC)
-    red_mask_img_file.close()
-
-    # change to hsv
-    hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_RGB2HSV)
-    hue,s,v = cv2.split(hsv)
-
-    # 提取绿色（h=60）构建mask矩阵，处理后mask矩阵中绿色为255，非绿色为0，和像素点一一对应
-    # 第一个参数：原始值
-    # 第二个参数：lower_red指的是图像中低于这个lower_red的值，图像值变为0
-    # 第三个参数：upper_red指的是图像中高于这个upper_red的值，图像值变为0
-    # 而在lower_red～upper_red之间的值变成255
-    mask = cv2.inRange(hue, 30, 67)
-    # mask = cv2.inRange(s, 0, 0)
-    # print_all_numpy(mask,'beforesmooth.txt')
-    # smooth out the mask and invert，柔化边缘，之前高斯过了，可以不用
-    # kernel = np.ones((3,3), np.uint8)
-    # # mask = cv2.dilate(mask, kernel, iterations = 1)
-    # mask = cv2.erode(mask, kernel, iterations = 1)
-    # mask = cv2.medianBlur(mask, 3)
-    # # mask = cv2.bitwise_not(mask)
-    # print_all_numpy(mask,'aftersmooth.txt')
-    # cv2.imshow("Mask", mask)
-    # if cv2.waitKey(1000) == ord('q'):
-    #     sys.exit()
-
-    if cupyflag:
-        crop = cp.asarray(img)
+    red_mask_filename = os.path.splitext(os.path.basename(red_mask))[0]
+    red_mask_filename_int = int(red_mask_filename)
+    if frame_num < 0:
+        crop = cv2.imread('tools/0000000.png')
+        crop = cv2.resize(crop, (w,h))
+    elif red_mask_filename_int != frame_num_tmp:
+        print('\nError,frame_num error,red_mask_filename_int:%d,frame_num:%d\n' % (red_mask_filename_int,frame_num))
+        sys.exit()
     else:
-        crop = img
+        # print(red_mask)
+        # resize,考虑加上resize.py的高斯滤波
+        # img = cv2.resize(img, res)
+        # red_mask_img_file = Image.open(red_mask)
+        # red_mask_img = resize.Gaussian(red_mask_img_file, h, w)
+        # 暂时先别用高斯模糊
+        # red_mask_img = red_mask_img_file.convert("RGB")
+        # red_mask_img = np.array(red_mask_img)
+        red_mask_img = cv2.imread(red_mask)
+            
+        # TODO:mask图片拉伸后会有锯齿，可以尝试消除
+        red_mask_img = cv2.resize(red_mask_img, (w, h),cv2.INTER_CUBIC)
+        
+        # kernel = np.ones((3,3), np.uint8)
+        # red_mask_img = cv2.dilate(red_mask_img, kernel, iterations = 1)
+        # mask = cv2.erode(mask, kernel, iterations = 1)
+        red_mask_img = cv2.medianBlur(red_mask_img, 21)
 
-    if backimg is None:
-        # 将绿色mask部分填充为绿色
-        crop[mask == 255] = [0,255,0] 
-    else: 
-        # 将绿色mask部分填充为背景
-        rows, cols = crop.shape[:2]
-        for i in range(rows):
-            for j in range(cols):
-                if mask[i,j] == 255:
-                    crop[i, j] = backimg[i, j]
+        # change to hsv
+        hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_RGB2HSV)
+        hue,s,v = cv2.split(hsv)
 
-    # show
-    # cv2.imshow("Mask", mask)
-    # cv2.imshow("Blank", crop)
-    # cv2.imshow("Image", img)
-    # done = cv2.waitKey(1) == ord('q')
+        # 提取绿色（h=60）构建mask矩阵，处理后mask矩阵中绿色为255，非绿色为0，和像素点一一对应
+        # 第一个参数：原始值
+        # 第二个参数：lower_red指的是图像中低于这个lower_red的值，图像值变为0
+        # 第三个参数：upper_red指的是图像中高于这个upper_red的值，图像值变为0
+        # 而在lower_red～upper_red之间的值变成255
+        # mask = cv2.inRange(hue, 30, 90)
+        mask = cv2.inRange(hue, 30, 90)
+        # mask = cv2.inRange(s, 0, 0)
+        # print_all_numpy(mask,'beforesmooth.txt')
+        # smooth out the mask and invert，柔化边缘，之前高斯过了，可以不用
+        # kernel = np.ones((3,3), np.uint8)
+        # mask = cv2.dilate(mask, kernel, iterations = 1)
+        # # mask = cv2.erode(mask, kernel, iterations = 1)
+        # mask = cv2.medianBlur(mask, 5)
+        # mask = cv2.bitwise_not(mask)
+        # print_all_numpy(mask,'aftersmooth.txt')
+        # cv2.imshow("Mask", mask)
+        # if cv2.waitKey(1000) == ord('q'):
+        #     sys.exit()
 
-    # save
-    if cupyflag:
-        crop = cp.asnumpy(crop)
-    out_crop_list[frame_num] = crop
+        if cupyflag:
+            crop = cp.asarray(img)
+        else:
+            crop = img
+
+        if backimg is None:
+            # 将绿色mask部分填充为绿色
+            crop[mask == 255] = [0,255,0] 
+        else: 
+            # 将绿色mask部分填充为背景
+            rows, cols = crop.shape[:2]
+            for i in range(rows):
+                for j in range(cols):
+                    if mask[i,j] == 255:
+                        crop[i, j] = backimg[i, j]
+
+        # show
+        # cv2.imshow("Mask", mask)
+        # cv2.imshow("Blank", crop)
+        # cv2.imshow("Image", img)
+        # done = cv2.waitKey(1) == ord('q')
+
+        # save
+        if cupyflag:
+            crop = cp.asnumpy(crop)
+    out_crop_list[frame_num_tmp] = crop
     sem.release()
 
 max_frame_num = None
+
 def write_out_crop(out,out_crop_list):
     now_num = 0
     while True:
@@ -117,6 +137,7 @@ def write_out_crop(out,out_crop_list):
         else:
             out_crop_list.pop(now_num)
             now_num = now_num + 1
+    end_sem.release()
 
 start = time.time()
 
@@ -124,6 +145,8 @@ config = configparser.ConfigParser()
 config.read('tools/config.ini')
 src_file_name = config['config']['src_file_name']
 src_file_ext = config['config']['src_file_ext']
+object_num = config['config']['object_num']
+object_num = int(object_num)
 # mask图片中非mask部分的hsv通道中的h，不能为黑色，红0，绿120，蓝240，Xmem分割单对象默认为红色
 none_mask_color_hue = 0
 
@@ -167,7 +190,7 @@ total_framenum = vs['nb_frames']
 # framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 
 fr = convert_str_to_float(framerate)
-fourcc = cv2.VideoWriter_fourcc(*'I420')
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
 if os.path.exists(dst_file+'.avi'):
     os.remove(dst_file+'.avi')
 out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
@@ -179,6 +202,11 @@ out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 max_framenum = int(total_framenum) - 1
 
 frame_num = 0
+
+first_mask = red_mask_list[0]
+first_mask_filename = os.path.splitext(os.path.basename(first_mask))[0]
+first_mask_filename_int = int(first_mask_filename)
+
 
 end = time.time() - start
 print('初始化完成：用时：{}'.format(end))
@@ -205,22 +233,25 @@ while True:
         write_sem.release()
         print('All frames have been read,break now')
         break
-    # if frame_num >= len(red_mask_list):
-    if frame_num >= 500:
+    if frame_num >= len(red_mask_list):
+    # if frame_num >= 20:
         max_frame_num = frame_num
         write_sem.release()
         print('Src video length longer than mask,break now')
         break
-    print('%d,进度：%d/%d\r' % (len(out_crop_list),frame_num,max_framenum),end='')
+    print('进度：%d/%d,队列:%d.\r' % (frame_num,max_framenum,len(out_crop_list)),end='')
     thread = threading.Thread(target=apply_mask, args=(
-                    red_mask_list,frame_num,img,None,out_crop_list,cupyflag))
+                    red_mask_list,frame_num,img,None,out_crop_list,cupyflag,first_mask_filename_int))
     sem.acquire()
     thread.start()
-    if frame_num % 3 == 0:
-        write_sem.release()
+    write_sem.release()
     if len(out_crop_list) > 10:
         time.sleep(0.1)
     frame_num  = frame_num + 1
+
+while end_sem._value == 0:
+    write_sem.release()
+    time.sleep(0.01)
 
 write_thread.join()
 
