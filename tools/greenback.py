@@ -34,42 +34,43 @@ def print_all_numpy(n,file):
     with open(file, "w+") as external_file:
         print(n, file=external_file)
 
-sem = threading.Semaphore(6)
+# 多线程处理mask,根据电脑实际情况配置，videowriter是瓶颈就减少，mask处理是瓶颈就增加
+sem = threading.Semaphore(8)
+# 图片写入视频线程所用队列的信号
 write_sem = threading.Semaphore(1)
+# 写入完成信号
 end_sem = threading.Semaphore(0)
-def apply_mask(red_mask_list,frame_num,img,backimg,out_crop_list,cupyflag,first_mask_filename_int):
-    # sem.acquire()
+def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,first_mask_filename_int,img_green,object_num):
     frame_num_tmp = frame_num
     frame_num = frame_num - first_mask_filename_int
     red_mask = red_mask_list[frame_num]
     red_mask_filename = os.path.splitext(os.path.basename(red_mask))[0]
     red_mask_filename_int = int(red_mask_filename)
     if frame_num < 0:
-        crop = cv2.imread('tools/0000000.png')
-        crop = cv2.resize(crop, (w,h))
+        crop = img_green
     elif red_mask_filename_int != frame_num_tmp:
         print('\nError,frame_num error,red_mask_filename_int:%d,frame_num:%d\n' % (red_mask_filename_int,frame_num))
         sys.exit()
     else:
-        # print(red_mask)
-        # resize,考虑加上resize.py的高斯滤波
-        # img = cv2.resize(img, res)
-        # red_mask_img_file = Image.open(red_mask)
-        # red_mask_img = resize.Gaussian(red_mask_img_file, h, w)
-        # 暂时先别用高斯模糊
-        # red_mask_img = red_mask_img_file.convert("RGB")
-        # red_mask_img = np.array(red_mask_img)
         red_mask_img = cv2.imread(red_mask)
+        # 大于一种颜色时要先合并成一种颜色
+        if object_num > 1:
+            green_mask = red_mask_img[:,:,0] + (red_mask_img[:,:,1] // 2)  + red_mask_img[:,:,2]
+            red_mask_img[:,:,0][green_mask != 127] = 255    #R
+            red_mask_img[:,:,1][green_mask != 127] = 0    #G
+            red_mask_img[:,:,2][green_mask != 127] = 0  #B
             
         # TODO:mask图片拉伸后会有锯齿，可以尝试消除
         red_mask_img = cv2.resize(red_mask_img, (w, h),cv2.INTER_CUBIC)
         
+        # 使用腐蚀加扩展消除噪点，效果不好，暂时不用
         # kernel = np.ones((3,3), np.uint8)
         # red_mask_img = cv2.dilate(red_mask_img, kernel, iterations = 1)
         # mask = cv2.erode(mask, kernel, iterations = 1)
+        # 使用中值滤波消除锯齿，效果不错，但很吃cpu
         red_mask_img = cv2.medianBlur(red_mask_img, 21)
 
-        # change to hsv
+        # 转为HSV比较好找邻近色，mask会更平滑
         hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_RGB2HSV)
         hue,s,v = cv2.split(hsv)
 
@@ -78,16 +79,10 @@ def apply_mask(red_mask_list,frame_num,img,backimg,out_crop_list,cupyflag,first_
         # 第二个参数：lower_red指的是图像中低于这个lower_red的值，图像值变为0
         # 第三个参数：upper_red指的是图像中高于这个upper_red的值，图像值变为0
         # 而在lower_red～upper_red之间的值变成255
-        # mask = cv2.inRange(hue, 30, 90)
+        # 临近色30，60-30，60+30
         mask = cv2.inRange(hue, 30, 90)
-        # mask = cv2.inRange(s, 0, 0)
-        # print_all_numpy(mask,'beforesmooth.txt')
-        # smooth out the mask and invert，柔化边缘，之前高斯过了，可以不用
-        # kernel = np.ones((3,3), np.uint8)
-        # mask = cv2.dilate(mask, kernel, iterations = 1)
-        # # mask = cv2.erode(mask, kernel, iterations = 1)
-        # mask = cv2.medianBlur(mask, 5)
-        # mask = cv2.bitwise_not(mask)
+
+        # 一些调试打印信息
         # print_all_numpy(mask,'aftersmooth.txt')
         # cv2.imshow("Mask", mask)
         # if cv2.waitKey(1000) == ord('q'):
@@ -109,12 +104,6 @@ def apply_mask(red_mask_list,frame_num,img,backimg,out_crop_list,cupyflag,first_
                     if mask[i,j] == 255:
                         crop[i, j] = backimg[i, j]
 
-        # show
-        # cv2.imshow("Mask", mask)
-        # cv2.imshow("Blank", crop)
-        # cv2.imshow("Image", img)
-        # done = cv2.waitKey(1) == ord('q')
-
         # save
         if cupyflag:
             crop = cp.asnumpy(crop)
@@ -132,8 +121,8 @@ def write_out_crop(out,out_crop_list):
             if max_frame_num == now_num:
                 break
             else:
+                # 队列里没有要处理的就先阻塞
                 write_sem.acquire()
-                # time.sleep(0.01)
         else:
             out_crop_list.pop(now_num)
             now_num = now_num + 1
@@ -158,9 +147,6 @@ cap = cv2.VideoCapture(src_file)
 red_mask_list = sorted(glob.glob('workspace/%s/masks/*.png' % src_file_name))
 backimg_path = None
 # backimg_path = "1.jpg"
-
-# 邻近色
-margin = 5
 
 # grab one frame
 scale = 1
@@ -195,18 +181,19 @@ if os.path.exists(dst_file+'.avi'):
     os.remove(dst_file+'.avi')
 out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 
-# 获取总帧数
-# outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"nb_frames\"" % src_file))
-# total_framenum = re.search("nb_frames=(.*)",outstr).group(1)
 
 max_framenum = int(total_framenum) - 1
 
 frame_num = 0
 
+# 第一张mask的序号，有时候不是从0开始的
 first_mask = red_mask_list[0]
 first_mask_filename = os.path.splitext(os.path.basename(first_mask))[0]
 first_mask_filename_int = int(first_mask_filename)
 
+# 创建纯绿色图片
+img_green = np.zeros([h, w, 3], np.uint8)
+img_green[:, :, 1] = np.zeros([h, w]) + 255
 
 end = time.time() - start
 print('初始化完成：用时：{}'.format(end))
@@ -241,14 +228,16 @@ while True:
         break
     print('进度：%d/%d,队列:%d.\r' % (frame_num,max_framenum,len(out_crop_list)),end='')
     thread = threading.Thread(target=apply_mask, args=(
-                    red_mask_list,frame_num,img,None,out_crop_list,cupyflag,first_mask_filename_int))
+                    red_mask_list,frame_num,img,w,h,None,out_crop_list,cupyflag,first_mask_filename_int,img_green,object_num))
     sem.acquire()
     thread.start()
     write_sem.release()
+    # 队列里待处理的过多，暂停一下
     if len(out_crop_list) > 10:
         time.sleep(0.1)
     frame_num  = frame_num + 1
 
+# 等待帧全部写入完成
 while end_sem._value == 0:
     write_sem.release()
     time.sleep(0.01)
