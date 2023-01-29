@@ -38,7 +38,7 @@ def print_all_numpy(n,file):
         print(n, file=external_file)
 
 # 多线程处理mask,根据电脑实际情况配置，videowriter是瓶颈就减少，mask处理是瓶颈就增加
-sem = threading.Semaphore(8)
+sem = threading.Semaphore(7)
 # 图片写入视频线程所用队列的信号
 write_sem = threading.Semaphore(1)
 # 写入完成信号
@@ -58,10 +58,10 @@ def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,fi
         red_mask_img = cv2.imread(red_mask)
         # 大于一种颜色时要先合并成一种颜色
         if object_num > 1:
-            green_mask = red_mask_img[:,:,0] + (red_mask_img[:,:,1] // 2)  + red_mask_img[:,:,2]
-            red_mask_img[:,:,0][green_mask != 127] = 255    #R
-            red_mask_img[:,:,1][green_mask != 127] = 0    #G
-            red_mask_img[:,:,2][green_mask != 127] = 0  #B
+            green_mask = (red_mask_img[:,:,0] << 16) + (red_mask_img[:,:,1] << 8)  + red_mask_img[:,:,2]
+            red_mask_img[:,:,0][green_mask != 65280] = 255    #R
+            red_mask_img[:,:,1][green_mask != 65280] = 0    #G
+            red_mask_img[:,:,2][green_mask != 65280] = 0  #B
             
         # TODO:mask图片拉伸后会有锯齿，可以尝试消除
         red_mask_img = cv2.resize(red_mask_img, (w, h),cv2.INTER_CUBIC)
@@ -190,6 +190,8 @@ if videowriter_flag == True:
         os.remove(dst_file+'.avi')
     out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
 else:
+    cap.release()
+    cap = sp.Popen(shlex.split(f'ffmpeg -i {src_file} -f rawvideo -pix_fmt bgr24 pipe:'), stdout=sp.PIPE)
     # Open ffmpeg application as sub-process
     # FFmpeg input PIPE: RAW images in BGR color format
     # FFmpeg output MP4 file encoded with HEVC codec.
@@ -205,7 +207,7 @@ else:
     # -crf 24              Constant quality encoding (lower value for higher quality and larger output file).
     # {output_filename}    Output file name: output_filename (output.mp4)
     # 如遇错误：Picture width must be an integer multiple of the specified chroma subsampling，是指yuv420p格式下视频长宽必须是2（或4）的倍数，源图片需要缩放大小
-    out = sp.Popen(shlex.split(f'ffmpeg -y -loglevel warning -f rawvideo -pix_fmt bgr24 -s {w}x{h} -r {framerate} -thread_queue_size 32 -i pipe: -i {src_file} -map 0:v -map 1:a? -c:v libx265 -r {framerate} -pix_fmt yuv420p -crf 26 -c:a copy -shortest {dst_file}'), stdin=sp.PIPE)
+    out = sp.Popen(shlex.split(f'ffmpeg -y -loglevel warning -f rawvideo -pix_fmt bgr24 -s {w}x{h} -r {framerate} -thread_queue_size 64 -i pipe: -i {src_file} -map 0:v -map 1:a? -c:v libx265 -r {framerate} -pix_fmt yuv420p -crf 26 -c:a copy -shortest {dst_file}'), stdin=sp.PIPE)
 
 max_framenum = int(total_framenum) - 1
 
@@ -233,11 +235,21 @@ write_thread.start()
 while True:
     ret = 1
     # get frame
-    if frame_num != 0:
-        ret, img = cap.read()
-    else: 
-        # 第一帧之前读过了,跳过读取
-        img = frame
+    if videowriter_flag == True:
+        if frame_num != 0:
+            ret, img = cap.read()
+        else: 
+            # 第一帧之前读过了,跳过读取
+            img = frame
+    else:
+        raw_image = cap.stdout.read(w * h * 3)  # 从管道里读取一帧，字节数为(宽*高*3)有三个通道
+        if not raw_image:
+            ret = 0
+        else:
+            img = np.frombuffer(raw_image, dtype=np.uint8).reshape((h, w ,3))  # 把读取到的二进制数据转换成numpy数组
+            img = img.copy()
+            # img = img.reshape((h, w, 3))  # 把图像转变成应有形状
+            # cap.stdout.flush()  # 充管道
     
     if not ret:
         # 全部读取完成
@@ -274,15 +286,16 @@ print('avi生成完成：用时：{}'.format(end))
 start = time.time()
 
 # close caps
-cap.release()
 if videowriter_flag == True:
+    cap.release()
     out.release()
     #  -shortest 用于音频长于视频时缩短音频长度使两者等长，libx265 crf 26质量基本不会损失画质且视频占用空间能缩小很多
     os.system('ffmpeg -i %s -i %s -map 0:v -map 1:a? -c:v libx265 -crf 26 -c:a copy -shortest %s' % (dst_file+'.avi',src_file, dst_file))
 else:
     out.stdin.close()
     out.wait()
-    # out.terminate()
+    out.terminate()
+    cap.terminate()
 
 end = time.time() - start
 print('mp4生成完成：用时：{}'.format(end))
