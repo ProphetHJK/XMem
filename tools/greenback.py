@@ -7,6 +7,8 @@ import os,re
 import resize,time
 import ffmpeg
 import threading
+import subprocess as sp
+import shlex
 
 cupyflag = True
 try:
@@ -19,7 +21,8 @@ except ImportError:
 本程序用于生成绿幕视频，方便PR等视频剪辑工具导入
 
 """
-
+# 使用opencv提供的VideoWriter功能，否则使用ffmpeg
+videowriter_flag = False
 
 def convert_str_to_float(s: str) -> float:
     """Convert rational or decimal string to float
@@ -116,7 +119,10 @@ def write_out_crop(out,out_crop_list):
     now_num = 0
     while True:
         try:
-            out.write(out_crop_list[now_num])
+            if videowriter_flag == True:
+                out.write(out_crop_list[now_num])
+            else:
+                out.stdin.write(out_crop_list[now_num].astype(np.uint8).tobytes())
         except KeyError as ex:
             if max_frame_num == now_num:
                 break
@@ -131,7 +137,7 @@ def write_out_crop(out,out_crop_list):
 start = time.time()
 
 config = configparser.ConfigParser()
-config.read('tools/config.ini')
+config.read('tools/config.ini',encoding='utf8')
 src_file_name = config['config']['src_file_name']
 src_file_ext = config['config']['src_file_ext']
 object_num = config['config']['object_num']
@@ -175,12 +181,31 @@ total_framenum = vs['nb_frames']
 # outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 %s |grep \"r_frame_rate\"" % src_file))
 # framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
 
-fr = convert_str_to_float(framerate)
-fourcc = cv2.VideoWriter_fourcc(*'XVID')
-if os.path.exists(dst_file+'.avi'):
-    os.remove(dst_file+'.avi')
-out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
-
+if os.path.exists(dst_file):
+    os.remove(dst_file)
+if videowriter_flag == True:
+    fr = convert_str_to_float(framerate)
+    fourcc = cv2.VideoWriter_fourcc(*'XVID')
+    if os.path.exists(dst_file+'.avi'):
+        os.remove(dst_file+'.avi')
+    out = cv2.VideoWriter(dst_file+'.avi',fourcc, fr, res)
+else:
+    # Open ffmpeg application as sub-process
+    # FFmpeg input PIPE: RAW images in BGR color format
+    # FFmpeg output MP4 file encoded with HEVC codec.
+    # Arguments list:
+    # -y                   Overwrite output file without asking
+    # -s {width}x{height}  Input resolution width x height (1344x756)
+    # -pixel_format bgr24  Input frame color format is BGR with 8 bits per color component
+    # -f rawvideo          Input format: raw video
+    # -r {fps}             Frame rate: fps (25fps)
+    # -i pipe:             ffmpeg input is a PIPE
+    # -vcodec libx265      Video codec: H.265 (HEVC)
+    # -pix_fmt yuv420p     Output video color space YUV420 (saving space compared to YUV444)
+    # -crf 24              Constant quality encoding (lower value for higher quality and larger output file).
+    # {output_filename}    Output file name: output_filename (output.mp4)
+    # 如遇错误：Picture width must be an integer multiple of the specified chroma subsampling，是指yuv420p格式下视频长宽必须是2（或4）的倍数，源图片需要缩放大小
+    out = sp.Popen(shlex.split(f'ffmpeg -y -loglevel warning -f rawvideo -pix_fmt bgr24 -s {w}x{h} -r {framerate} -thread_queue_size 32 -i pipe: -i {src_file} -map 0:v -map 1:a? -c:v libx265 -r {framerate} -pix_fmt yuv420p -crf 26 -c:a copy -shortest {dst_file}'), stdin=sp.PIPE)
 
 max_framenum = int(total_framenum) - 1
 
@@ -250,11 +275,15 @@ start = time.time()
 
 # close caps
 cap.release()
-out.release()
+if videowriter_flag == True:
+    out.release()
+    #  -shortest 用于音频长于视频时缩短音频长度使两者等长，libx265 crf 26质量基本不会损失画质且视频占用空间能缩小很多
+    os.system('ffmpeg -i %s -i %s -map 0:v -map 1:a? -c:v libx265 -crf 26 -c:a copy -shortest %s' % (dst_file+'.avi',src_file, dst_file))
+else:
+    out.stdin.close()
+    out.wait()
+    # out.terminate()
 
-#  -shortest 用于音频长于视频时缩短音频长度使两者等长，libx265 crf 26质量基本不会损失画质且视频占用空间能缩小很多
-os.system('ffmpeg -i %s -i %s -map 0:v -map 1:a? -c:v libx265 -crf 26 -c:a copy -shortest %s' % (dst_file+'.avi',src_file, dst_file))
-    
 end = time.time() - start
 print('mp4生成完成：用时：{}'.format(end))
 start = time.time()
