@@ -8,6 +8,7 @@ import shutil
 import configparser
 
 
+''' 将png转为黑底'''
 pngsig = b'\x89PNG\r\n\x1a\n'
 def swap_palette(filename):
     # open in read+write mode
@@ -33,8 +34,10 @@ def swap_palette(filename):
                 paldata = f.read(length)
                 # change the 3rd palette entry to cyan
                 # paldata = paldata[:6] + b'\x00\xff\xde' + paldata[9:]
-                # 第一个由黑色改为绿色，第二个由暗红色改为红色
-                paldata = b'\x00\xff\x00' + b'\xff\x00\x00' + b'\x00\x00\xff' + paldata[9:]
+                # # 第一个由黑色改为绿色，第二个由暗红色改为红色
+                # paldata = b'\x00\xff\x00' + b'\xff\x00\x00' + b'\x00\x00\xff' + paldata[9:]
+                # 第一个由绿色改为黑色，第二个由暗红色改为红色
+                paldata = b'\x00\x00\x00\x80\x00\x00\x00\x80\x00\x80\x80\x00' + paldata[12:]
 
                 # go back and write the modified palette in-place
                 f.seek(curpos)
@@ -48,8 +51,6 @@ config = configparser.ConfigParser()
 config.read('tools/config.ini')
 src_file_name = config['config']['src_file_name']
 src_file_ext = config['config']['src_file_ext']
-i = 1
-j = 1
 path='workspace/%s/' % src_file_name
 src_path = path + 'masks/'
 # dst_path = path + 'masks2/'
@@ -57,53 +58,16 @@ dst_path = path + 'masks/'
 # if not os.path.exists(dst_path):
 #     os.makedirs(dst_path)
 
-# for root, dirs, files in os.walk(src_path):
-#     for file in files:
-#         shutil.copyfile(root+file, dst_path+file)
-#         # 方式1，PNG为P模式，非RGB模式，所以直接修改调色板
-#         swap_palette(dst_path+file)
-
-        # 方式2，下面是用转成RGB再修改每个像素点的方式，太慢了
-        # img = Image.open(os.path.join(root,file))#读取系统的内照片
-        # print (img.size)#打印图片大小
-        # print (img.palette)
-        # print (img.getpixel((4,4)))
-        # width = img.size[0]#长度
-        # height = img.size[1]#宽度
-        # img = img.convert("RGB")
-        # pix = img.load()
-        # for i in range(0,width):#遍历所有长度的点
-        #     for j in range(0,height):#遍历所有宽度的点
-        #         # data = (img.getpixel((i,j)))#打印该图片的所有点
-        #         data = pix[i,j]
-                
-        #         # print(pix[i,j])#打印每个像素点的颜色RGBA的值(r,g,b,alpha)
-        #         # if data > 0:
-        #         #     print (data)#打印RGBA的r值
-
-        #         if (data[0]==128 and data[1]==0 and data[2]==0):#RGBA的r值大于170，并且g值大于170,并且b值大于170
-        #             img.putpixel((i,j),(255,0,0,255))
-        #         else:
-        #             img.putpixel((i,j),(0,177,64,255))#则这些像素点的颜色改成大红色
-                    
-
-        # # img = img.convert("RGB")#把图片强制转成RGB
-        # img.save(dst_path+file)#保存修改像素点后的图片
+for root, dirs, files in os.walk(src_path):
+    for file in files:
+        shutil.copyfile(root+file, dst_path+file)
+        # PNG为P模式，非RGB模式，所以直接修改调色板
+        swap_palette(dst_path+file)
 
 
-
-# Height = 830 #Required Height for resize
-# Width = 462 #Required Width for resize
-# outdir = 'testdata/resize'
-
-# for root, dirs, files in os.walk(src_path):
-#     for file in files:
-#         img = Image.open(root+file)
-#         img = img.resize((Width,Height),Image.ANTIALIAS)
-#         img.save(os.path.join(outdir,file))
-
-# TODO:有BUG，遇到非固定速率视频会造成不匹配
-outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 source/%s.%s |grep \"r_frame_rate\"" % (src_file_name,src_file_ext)))
-framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
-print(framerate)
-os.system("ffmpeg -framerate %s -y -i %s%%07d.png -c:v copy %soutput.mkv" % (framerate, dst_path,dst_path))
+''' 生成mask视频，现在直接用greenback.py就行，不需要这个了'''
+# # TODO:有BUG，遇到非固定速率视频会造成不匹配
+# outstr = "".join(os.popen("ffprobe -v quiet -show_streams -select_streams v:0 source/%s.%s |grep \"r_frame_rate\"" % (src_file_name,src_file_ext)))
+# framerate = re.search("r_frame_rate=(.*)",outstr).group(1)
+# print(framerate)
+# os.system("ffmpeg -framerate %s -y -i %s%%07d.png -c:v copy %soutput.mkv" % (framerate, dst_path,dst_path))
