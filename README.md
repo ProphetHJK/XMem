@@ -82,22 +82,6 @@ PS H:\XMem> python tools/greenback.py
 
 更新：已添加自动读取源文件信息并生成绿底视频功能，需要先修改 tools/config.ini
 
-### 生成 mask 视频
-
-利用 ffmpeg 将 mask 图片组转为视频，用于 PR 剪辑使用
-
-前置要求：
-
-- 同[生成绿幕视频](#生成绿幕视频)
-
-```powershell
-PS H:\XMem> python tools/pngcolor.py
-```
-
-生成的视频在 `workspace/{视频文件名}/masks/output.mkv`
-
-目前还有 BUG，遇到非固定速率视频会造成生成的 mask 视频和源视频不匹配，此时可以尝试将源视频转为固定帧速率
-
 ### 后续 TODO
 
 1. ~~优化边缘锯齿（对于性能较弱的显卡不得不降低素材分辨率，导致 mask 图片边缘会有锯齿）~~（已完成，使用 opencv 提供的中值滤波功能消除锯齿，效果不错，缺点是吃 CPU）

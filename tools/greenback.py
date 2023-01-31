@@ -38,7 +38,7 @@ def print_all_numpy(n,file):
         print(n, file=external_file)
 
 # 多线程处理mask,根据电脑实际情况配置，videowriter是瓶颈就减少，mask处理是瓶颈就增加
-sem = threading.Semaphore(7)
+sem = threading.Semaphore(8)
 # 图片写入视频线程所用队列的信号
 write_sem = threading.Semaphore(1)
 # 写入完成信号
@@ -55,37 +55,41 @@ def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,fi
         print('\nError,frame_num error,red_mask_filename_int:%d,frame_num:%d\n' % (red_mask_filename_int,frame_num))
         sys.exit()
     else:
+        # 读取为BGR
         red_mask_img = cv2.imread(red_mask)
-        # 大于一种颜色时要先合并成一种颜色
-        if object_num > 1:
-            green_mask = (red_mask_img[:,:,0] << 16) + (red_mask_img[:,:,1] << 8)  + red_mask_img[:,:,2]
-            red_mask_img[:,:,0][green_mask != 65280] = 255    #R
-            red_mask_img[:,:,1][green_mask != 65280] = 0    #G
-            red_mask_img[:,:,2][green_mask != 65280] = 0  #B
-            
-        # TODO:mask图片拉伸后会有锯齿，可以尝试消除
-        red_mask_img = cv2.resize(red_mask_img, (w, h),cv2.INTER_CUBIC)
         
-        # 使用腐蚀加扩展消除噪点，效果不好，暂时不用
+        # 背景为黑色，构造黑色mask
+        black_mask = red_mask_img[:,:,0] + red_mask_img[:,:,1] + red_mask_img[:,:,2]
+
+        # 非黑色mask合并成白色
+        red_mask_img[:,:,0][black_mask != 0] = 255  #B
+        red_mask_img[:,:,1][black_mask != 0] = 255  #G
+        red_mask_img[:,:,2][black_mask != 0] = 255  #R
+        
+        # 转为灰度图
+        red_mask_img_grey = cv2.cvtColor(red_mask_img, cv2.COLOR_BGR2GRAY)
+            
+        # 图片缩放
+        red_mask_img_grey = cv2.resize(red_mask_img_grey, (w, h),cv2.INTER_CUBIC)
+        
+        # 消除噪点：使用腐蚀加扩展消除噪点，效果不好，暂时不用
         # kernel = np.ones((3,3), np.uint8)
         # red_mask_img = cv2.dilate(red_mask_img, kernel, iterations = 1)
         # mask = cv2.erode(mask, kernel, iterations = 1)
-        # 使用中值滤波消除锯齿，效果不错，但很吃cpu
-        red_mask_img = cv2.medianBlur(red_mask_img, 21)
+        
+        # 抗锯齿：使用中值滤波消除锯齿，效果不错，但很吃cpu
+        red_mask_img_grey = cv2.medianBlur(red_mask_img_grey, 15)
 
-        # 转为HSV比较好找邻近色，mask会更平滑
-        hsv = cv2.cvtColor(red_mask_img, cv2.COLOR_RGB2HSV)
-        hue,s,v = cv2.split(hsv)
-
-        # 提取绿色（h=60）构建mask矩阵，处理后mask矩阵中绿色为255，非绿色为0，和像素点一一对应
+        # 提取黑色（0）及其临近色（1-127）构建mask矩阵，处理后mask矩阵中黑色为255，非黑色为0，和像素点一一对应
         # 第一个参数：原始值
         # 第二个参数：lower_red指的是图像中低于这个lower_red的值，图像值变为0
         # 第三个参数：upper_red指的是图像中高于这个upper_red的值，图像值变为0
         # 而在lower_red～upper_red之间的值变成255
-        # 临近色30，60-30，60+30
-        mask = cv2.inRange(hue, 30, 90)
+        # 临近色0-127
+        mask = cv2.inRange(red_mask_img_grey, 0, 127)
 
         # 一些调试打印信息
+        # cv2.imwrite(dst_file+'.jpg',red_mask_img_grey)
         # print_all_numpy(mask,'aftersmooth.txt')
         # cv2.imshow("Mask", mask)
         # if cv2.waitKey(1000) == ord('q'):
