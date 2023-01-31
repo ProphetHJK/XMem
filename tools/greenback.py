@@ -43,23 +43,20 @@ sem = threading.Semaphore(8)
 write_sem = threading.Semaphore(1)
 # 写入完成信号
 end_sem = threading.Semaphore(0)
-def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,first_mask_filename_int,img_green,object_num):
-    frame_num_tmp = frame_num
-    frame_num = frame_num - first_mask_filename_int
-    red_mask = red_mask_list[frame_num]
-    red_mask_filename = os.path.splitext(os.path.basename(red_mask))[0]
-    red_mask_filename_int = int(red_mask_filename)
-    if frame_num < 0:
-        crop = img_green
-    elif red_mask_filename_int != frame_num_tmp:
-        print('\nError,frame_num error,red_mask_filename_int:%d,frame_num:%d\n' % (red_mask_filename_int,frame_num))
-        sys.exit()
+def apply_mask(red_mask_file,frame_index,img,w,h,backimg,out_crop_list,cupyflag,green_img,object_num):
+    print(red_mask_file)
+    if red_mask_file is None:
+        # print('\nError,frame_num error,frame_num:%d\n' % (frame_num))
+        if backimg is None:
+            crop = green_img
+        else:
+            crop = backimg
     else:
         # 读取为BGR
         if cupyflag:
-            red_mask_img = cp.asarray(cv2.imread(red_mask))
+            red_mask_img = cp.asarray(cv2.imread(red_mask_file))
         else:
-            red_mask_img = cv2.imread(red_mask)
+            red_mask_img = cv2.imread(red_mask_file)
         
         # 背景为黑色，构造黑色mask
         black_mask = red_mask_img[:,:,0] + red_mask_img[:,:,1] + red_mask_img[:,:,2]
@@ -119,28 +116,29 @@ def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,fi
         # save
         if cupyflag:
             crop = cp.asnumpy(crop)
-    out_crop_list[frame_num_tmp] = crop
+    out_crop_list[frame_index] = crop
     sem.release()
 
+# 总处理帧数
 max_frame_num = None
 
 def write_out_crop(out,out_crop_list):
-    now_num = 0
+    now_frame_index = 0
     while True:
         try:
             if videowriter_flag == True:
-                out.write(out_crop_list[now_num])
+                out.write(out_crop_list[now_frame_index])
             else:
-                out.stdin.write(out_crop_list[now_num].astype(np.uint8).tobytes())
+                out.stdin.write(out_crop_list[now_frame_index].astype(np.uint8).tobytes())
         except KeyError as ex:
-            if max_frame_num == now_num:
+            if max_frame_num == now_frame_index:
                 break
             else:
                 # 队列里没有要处理的就先阻塞
                 write_sem.acquire()
         else:
-            out_crop_list.pop(now_num)
-            now_num = now_num + 1
+            out_crop_list.pop(now_frame_index)
+            now_frame_index = now_frame_index + 1
     end_sem.release()
 
 start = time.time()
@@ -218,14 +216,21 @@ else:
     # 如遇错误：Picture width must be an integer multiple of the specified chroma subsampling，是指yuv420p格式下视频长宽必须是2（或4）的倍数，源图片需要缩放大小
     out = sp.Popen(shlex.split(f'ffmpeg -y -loglevel warning -f rawvideo -pix_fmt bgr24 -s {w}x{h} -r {framerate} -thread_queue_size 64 -i pipe: -i {src_file} -map 0:v -map 1:a? -c:v libx265 -r {framerate} -pix_fmt yuv420p -crf 26 -c:a copy -shortest {dst_file}'), stdin=sp.PIPE)
 
-max_framenum = int(total_framenum) - 1
+src_max_framenum = int(total_framenum) - 1
 
-frame_num = 0
+#源视频帧序号
+frame_index = 0
 
-# 第一张mask的序号，有时候不是从0开始的
-first_mask = red_mask_list[0]
-first_mask_filename = os.path.splitext(os.path.basename(first_mask))[0]
-first_mask_filename_int = int(first_mask_filename)
+appended_red_mask_list = {}
+for i in range(0,src_max_framenum):
+    appended_red_mask_list[i] = None
+
+for i in range(0,len(red_mask_list)):
+    mask_filename = os.path.splitext(os.path.basename(red_mask_list[i]))[0]
+    mask_filename_int = int(mask_filename)
+    appended_red_mask_list[mask_filename_int] = red_mask_list[i]
+
+max_red_mask_file_index = int(os.path.splitext(os.path.basename(red_mask_list[len(red_mask_list)-1]))[0])
 
 # 创建纯绿色图片
 img_green = np.zeros([h, w, 3], np.uint8)
@@ -240,18 +245,19 @@ out_crop_list = {}
 write_thread = threading.Thread(target=write_out_crop, args=(out,out_crop_list))
 write_thread.start()
 
+img_size = w * h * 3
 # loop
 while True:
     ret = 1
     # get frame
     if videowriter_flag == True:
-        if frame_num != 0:
+        if frame_index != 0:
             ret, img = cap.read()
         else: 
             # 第一帧之前读过了,跳过读取
             img = frame
     else:
-        raw_image = cap.stdout.read(w * h * 3)  # 从管道里读取一帧，字节数为(宽*高*3)有三个通道
+        raw_image = cap.stdout.read(img_size)  # 从管道里读取一帧，字节数为(宽*高*3)有三个通道
         if not raw_image:
             ret = 0
         else:
@@ -260,31 +266,30 @@ while True:
             # img = img.reshape((h, w, 3))  # 把图像转变成应有形状
             # cap.stdout.flush()  # 充管道
     
-    # if frame_num == 60:
-    #     ret = 0
-    
     if not ret:
         # 全部读取完成
-        max_frame_num = frame_num
+        max_frame_num = frame_index
         write_sem.release()
         print('All frames have been read,break now')
         break
-    if frame_num >= len(red_mask_list):
-    # if frame_num >= 20:
-        max_frame_num = frame_num
+
+    if frame_index > max_red_mask_file_index:
+    # if frame_index > 20:
+        max_frame_num = frame_index
         write_sem.release()
         print('Src video length longer than mask,break now')
         break
-    print('进度：%d/%d,队列:%d.\r' % (frame_num,max_framenum,len(out_crop_list)),end='')
+        
+    print('进度：%d/%d,队列:%d.\r' % (frame_index,src_max_framenum,len(out_crop_list)),end='')
     thread = threading.Thread(target=apply_mask, args=(
-                    red_mask_list,frame_num,img,w,h,None,out_crop_list,cupyflag,first_mask_filename_int,img_green,object_num))
+                    appended_red_mask_list[frame_index],frame_index,img,w,h,None,out_crop_list,cupyflag,img_green,object_num))
     sem.acquire()
     thread.start()
     write_sem.release()
     # 队列里待处理的过多，暂停一下
     if len(out_crop_list) > 10:
         time.sleep(0.1)
-    frame_num  = frame_num + 1
+    frame_index  = frame_index + 1
 
 # 等待帧全部写入完成
 while end_sem._value == 0:

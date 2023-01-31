@@ -8,7 +8,8 @@ Xmem 用于视频抠像，优点是消耗的内存和 GPU 资源少，且对象�
 
 - Nvidia GTX 或 RTX 显卡(GeForce GTX 1070)
 - 高性能 CPU(AMD Ryzen™ 5 5600X)
-- 固态硬盘
+- 16GB 以上的内存(20GB)
+- 高性能固态硬盘(可选)
 
 ## 演示
 
@@ -72,7 +73,7 @@ scripts/download_models_demo.sh
 - ~~[Git Bash](https://gitforwindows.org/)(用到了 grep 命令，Linux 一般自带)~~(当前版本不需要)
 - [CUDA](https://developer.nvidia.com/cuda-downloads?target_os=Windows&target_arch=x86_64&target_version=10&target_type=exe_local)(加速 numpy 矩阵计算)
 - python3
-- cupy(注意和 CUDA 的版本匹配，否则会安装失败)
+- cupy(可选，注意和 CUDA 的版本匹配，否则会安装失败)
 
 ```powershell
 PS H:\XMem> python tools/greenback.py
