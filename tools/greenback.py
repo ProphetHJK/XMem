@@ -56,16 +56,20 @@ def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,fi
         sys.exit()
     else:
         # 读取为BGR
-        red_mask_img = cv2.imread(red_mask)
+        if cupyflag:
+            red_mask_img = cp.asarray(cv2.imread(red_mask))
+        else:
+            red_mask_img = cv2.imread(red_mask)
         
         # 背景为黑色，构造黑色mask
         black_mask = red_mask_img[:,:,0] + red_mask_img[:,:,1] + red_mask_img[:,:,2]
 
         # 非黑色mask合并成白色
-        red_mask_img[:,:,0][black_mask != 0] = 255  #B
-        red_mask_img[:,:,1][black_mask != 0] = 255  #G
-        red_mask_img[:,:,2][black_mask != 0] = 255  #R
+        red_mask_img[black_mask != 0] = [255,255,255]
         
+        if cupyflag:
+            red_mask_img = cp.asnumpy(red_mask_img)
+
         # 转为灰度图
         red_mask_img_grey = cv2.cvtColor(red_mask_img, cv2.COLOR_BGR2GRAY)
             
@@ -78,7 +82,7 @@ def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,fi
         # mask = cv2.erode(mask, kernel, iterations = 1)
         
         # 抗锯齿：使用中值滤波消除锯齿，效果不错，但很吃cpu
-        red_mask_img_grey = cv2.medianBlur(red_mask_img_grey, 15)
+        red_mask_img_grey = cv2.medianBlur(red_mask_img_grey, 21)
 
         # 提取黑色（0）及其临近色（1-127）构建mask矩阵，处理后mask矩阵中黑色为255，非黑色为0，和像素点一一对应
         # 第一个参数：原始值
@@ -90,6 +94,7 @@ def apply_mask(red_mask_list,frame_num,img,w,h,backimg,out_crop_list,cupyflag,fi
 
         # 一些调试打印信息
         # cv2.imwrite(dst_file+'.jpg',red_mask_img_grey)
+        # sys.exit()
         # print_all_numpy(mask,'aftersmooth.txt')
         # cv2.imshow("Mask", mask)
         # if cv2.waitKey(1000) == ord('q'):
@@ -254,6 +259,9 @@ while True:
             img = img.copy()
             # img = img.reshape((h, w, 3))  # 把图像转变成应有形状
             # cap.stdout.flush()  # 充管道
+    
+    # if frame_num == 60:
+    #     ret = 0
     
     if not ret:
         # 全部读取完成

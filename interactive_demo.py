@@ -42,7 +42,7 @@ else:
 if __name__ == '__main__':
     
     config = configparser.ConfigParser()
-    config.read('tools/config.ini')
+    config.read('tools/config.ini',encoding='utf8')
     src_file_name = config['config']['src_file_name']
     src_file_ext = config['config']['src_file_ext']
     video_resize = config['config']['video_resize']
