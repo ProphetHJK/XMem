@@ -71,13 +71,21 @@ class App(QWidget):
         self.commit_button = QPushButton('Commit')
         self.commit_button.clicked.connect(self.on_commit)
 
-        self.forward_run_button = QPushButton('Forward Propagate')
+        self.forward_run_button = QPushButton('Forward')
         self.forward_run_button.clicked.connect(self.on_forward_propagation)
-        self.forward_run_button.setMinimumWidth(200)
+        self.forward_run_button.setMinimumWidth(100)
 
-        self.backward_run_button = QPushButton('Backward Propagate')
+        self.backward_run_button = QPushButton('Backward')
         self.backward_run_button.clicked.connect(self.on_backward_propagation)
-        self.backward_run_button.setMinimumWidth(200)
+        self.backward_run_button.setMinimumWidth(100)
+
+        self.forward_single_run_button = QPushButton('Forward 1')
+        self.forward_single_run_button.clicked.connect(self.on_forward_propagation,1)
+        self.forward_single_run_button.setMinimumWidth(100)
+
+        self.backward_single_run_button = QPushButton('Backward 1')
+        self.backward_single_run_button.clicked.connect(self.on_backward_propagation,1)
+        self.backward_single_run_button.setMinimumWidth(100)
 
         self.reset_button = QPushButton('Reset Frame')
         self.reset_button.clicked.connect(self.on_reset_mask)
@@ -236,6 +244,8 @@ class App(QWidget):
         navi.addWidget(self.commit_button)
         navi.addWidget(self.forward_run_button)
         navi.addWidget(self.backward_run_button)
+        navi.addWidget(self.forward_single_run_button)
+        navi.addWidget(self.backward_single_run_button)
 
         # Drawing area, main canvas and minimap
         draw_area = QHBoxLayout()
@@ -340,7 +350,7 @@ class App(QWidget):
         # the object id used for popup/layered overlay
         self.vis_target_objects = [1]
         # try to load the default overlay
-        self._try_load_layer('./docs/ECCV-logo.png')
+        self._try_load_layer('./tools/green.png')
  
         self.load_current_image_mask()
         self.show_current_frame()
@@ -541,7 +551,7 @@ class App(QWidget):
             # Initialization, forget about it
             pass
 
-    def on_forward_propagation(self):
+    def on_forward_propagation(self,single=0):
         if self.propagating:
             # acts as a pause button
             self.propagating = False
@@ -549,9 +559,9 @@ class App(QWidget):
             self.propagate_fn = self.on_next_frame
             self.backward_run_button.setEnabled(False)
             self.forward_run_button.setText('Pause Propagation')
-            self.on_propagation()
+            self.on_propagation(single)
 
-    def on_backward_propagation(self):
+    def on_backward_propagation(self,single=0):
         if self.propagating:
             # acts as a pause button
             self.propagating = False
@@ -559,7 +569,7 @@ class App(QWidget):
             self.propagate_fn = self.on_prev_frame
             self.forward_run_button.setEnabled(False)
             self.backward_run_button.setText('Pause Propagation')
-            self.on_propagation()
+            self.on_propagation(single)
 
     def on_pause(self):
         self.propagating = False
@@ -570,7 +580,7 @@ class App(QWidget):
         self.backward_run_button.setText('Backward Propagate')
         self.console_push_text('Propagation stopped.')
 
-    def on_propagation(self):
+    def on_propagation(self,single=0):
         # start to propagate
         self.load_current_torch_image_mask()
         self.show_current_frame(fast=True)
@@ -585,6 +595,7 @@ class App(QWidget):
         self.propagating = True
         self.clear_mem_button.setEnabled(False)
         # propagate till the end
+        frame_num = single
         while self.propagating:
             self.propagate_fn()
 
@@ -602,6 +613,9 @@ class App(QWidget):
 
             if self.cursur == 0 or self.cursur == self.num_frames-1:
                 break
+            frame_num = frame_num - 1
+            if frame_num == 0:
+                break 
 
         self.propagating = False
         self.curr_frame_dirty = False
