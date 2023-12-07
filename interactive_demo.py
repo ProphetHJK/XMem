@@ -3,9 +3,13 @@ A simple user interface for XMem
 """
 
 import os
+from os import path
 # fix for Windows
 if 'QT_QPA_PLATFORM_PLUGIN_PATH' not in os.environ:
     os.environ['QT_QPA_PLATFORM_PLUGIN_PATH'] = ''
+
+import signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 import sys
 from argparse import ArgumentParser
@@ -17,9 +21,10 @@ from inference.interact.s2m_controller import S2MController
 from inference.interact.fbrs_controller import FBRSController
 from inference.interact.s2m.s2m_network import deeplabv3plus_resnet50 as S2M
 
-from PyQt5.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 from inference.interact.gui import App
 from inference.interact.resource_manager import ResourceManager
+from contextlib import nullcontext
 
 import configparser
 import cv2
@@ -27,6 +32,12 @@ from fractions import Fraction
 
 torch.set_grad_enabled(False)
 
+if torch.cuda.is_available():
+    device = torch.device("cuda")
+elif torch.backends.mps.is_available():
+    device = torch.device("mps")
+else:
+    device = torch.device("cpu")
 
 if __name__ == '__main__':
     
@@ -76,6 +87,7 @@ if __name__ == '__main__':
             help='Resize the shorter side to this size. -1 to use original resolution. ')
     args = parser.parse_args()
 
+    # create temporary workspace if not specified
     config = vars(args)
     config['enable_long_term'] = True
     config['enable_long_term_count_usage'] = True
@@ -145,21 +157,32 @@ if __name__ == '__main__':
     # cap.release()
     
     with torch.cuda.amp.autocast(enabled=not args.no_amp):
+    if config["workspace"] is None:
+        if config["images"] is not None:
+            basename = path.basename(config["images"])
+        elif config["video"] is not None:
+            basename = path.basename(config["video"])[:-4]
+        else:
+            raise NotImplementedError(
+                'Either images, video, or workspace has to be specified')
 
+        config["workspace"] = path.join('./workspace', basename)
+
+    with torch.cuda.amp.autocast(enabled=not args.no_amp) if device.type == 'cuda' else nullcontext():
         # Load our checkpoint
-        network = XMem(config, args.model).cuda().eval()
+        network = XMem(config, args.model, map_location=device).to(device).eval()
 
         # Loads the S2M model
         if args.s2m_model is not None:
-            s2m_saved = torch.load(args.s2m_model)
-            s2m_model = S2M().cuda().eval()
+            s2m_saved = torch.load(args.s2m_model, map_location=device)
+            s2m_model = S2M().to(device).eval()
             s2m_model.load_state_dict(s2m_saved)
         else:
             s2m_model = None
 
-        s2m_controller = S2MController(s2m_model, args.num_objects, ignore_class=255)
+        s2m_controller = S2MController(s2m_model, args.num_objects, ignore_class=255, device=device)
         if args.fbrs_model is not None:
-            fbrs_controller = FBRSController(args.fbrs_model)
+            fbrs_controller = FBRSController(args.fbrs_model, device=device)
         else:
             fbrs_controller = None
 
@@ -167,5 +190,5 @@ if __name__ == '__main__':
         resource_manager = ResourceManager(config)
 
         app = QApplication(sys.argv)
-        ex = App(network, resource_manager, s2m_controller, fbrs_controller, config)
-        sys.exit(app.exec_())
+        ex = App(network, resource_manager, s2m_controller, fbrs_controller, config, device)
+        sys.exit(app.exec())

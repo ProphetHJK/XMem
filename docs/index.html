@@ -3,17 +3,14 @@
 
 <head>
     <!-- Global site tag (gtag.js) - Google Analytics -->
-    <!-- <script async src="https://www.googletagmanager.com/gtag/js?id=G-EHLYGK132J"></script> -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-E4PHBZXG5S"></script>
     <script>
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
     gtag('js', new Date());
 
-    gtag('config', 'G-EHLYGK132J');
+    gtag('config', 'G-E4PHBZXG5S');
     </script>
-
-    <link rel="preconnect" href="https://fonts.gstatic.com">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@100;300;400&display=swap" rel="stylesheet">
 
 	<title>XMem</title>
 
@@ -161,11 +158,14 @@
 
     <br><br>
 
-    <div style="font-size: 14px;">
-        Contact: Ho Kei (Rex) Cheng hkchengrex@gmail.com
+    <div>
+        Contact: Ho Kei (Rex) Cheng
+        <div id="mail"></div>
+        <script>
+            document.querySelector("#mail").innerText = ["hkchengrex", "gmail.com"].join("@")
+        </script>
         <br>
     </div>
-
     <br><br>
 
 </div>

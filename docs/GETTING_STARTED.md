@@ -1,6 +1,6 @@
 # Getting Started
 
-Our code is tested on Ubuntu. I have briefly tested the GUI on Windows (with a PyQt5 fix in the heading of interactive_demo.py).
+Our code is tested on Ubuntu. I have briefly tested the GUI on Windows. Might also work on MAC (#103) but I haven't tested.
 
 ## Requirements
 
@@ -14,7 +14,7 @@ Our code is tested on Ubuntu. I have briefly tested the GUI on Windows (with a P
 
 I recommend either softlinking (`ln -s`) existing data or use the provided `scripts/download_datasets.py` to structure the datasets as our format.
 
-`python -m scripts.download_dataset`
+`python -m scripts.download_datasets`
 
 The structure is the same as the one in STCN -- you can place XMem in the same folder as STCN and it will work.
 The script uses Google Drive and sometimes fails when certain files are blocked from automatic download. You would have to do some manual work in that case.
@@ -56,7 +56,7 @@ It does not download BL30K because it is huge and we don't want to crash your ha
 
 ## Long-Time Video
 
-It comes from [AFB-URR](https://github.com/xmlyqing00/AFB-URR). Please following their license when using this data. We release our extended version (X3) and corresponding `_davis` versions such that the DAVIS evaluation can be used directly. They can be downloaded [[here]](TODO). The script above would also attempt to download it.
+It comes from [AFB-URR](https://github.com/xmlyqing00/AFB-URR). Please following their license when using this data. We release our extended version (X3) and corresponding `_davis` versions such that the DAVIS evaluation can be used directly. They can be downloaded [[here]](https://drive.google.com/uc?id=100MxAuV0_UL20ca5c-5CNpqQ5QYPDSoz). The script above would also attempt to download it. Use [[this script]](https://github.com/hkchengrex/XMem/blob/main/scripts/expand_long_vid.py) to expand it to (X3).
 
 ### BL30K
 
